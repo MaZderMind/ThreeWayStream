@@ -9,6 +9,8 @@ if [ -z $title ]; then
 	exit 2
 fi
 
+sudo whoami
+
 cleanup() {
 	echo "Mumble beenden"
 	kill $mumblePid
