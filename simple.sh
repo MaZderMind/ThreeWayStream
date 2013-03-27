@@ -19,7 +19,6 @@ cleanup() {
 
 	echo "PulseAudio zurücksetzen"
 	# Löschen der virtuellen Audiogeräte und Loopbacks
-	#pactl unload-module $loopbackLocalId
 	pactl unload-module $loopbackInId
 	pactl unload-module $loopbackOutId
 	pactl unload-module $streamSinkId
@@ -29,10 +28,20 @@ trap 'cleanup' 1 2
 
 echo "PulseAudio vorbereiten..."
 
+mv2sink()
+{
+	pacmd set-default-sink $1
+	pacmd list-sink-inputs | grep index | while read line
+	do
+		pacmd move-sink-input `echo $line | cut -f2 -d' '` $1
+	done
+}
+
 # Erstellt ein virtuelles Ausgabe-Gerät, das nicht auf eine echte Soundkarte zeigt
 # puleaudio erzeugt automatisch eine monitor-source, die in diese m Fall "stream.monitor"
 # heißt und als Eingabe für Darkice geeignet ist
 streamSinkId=$(pactl load-module module-null-sink sink_name=stream)
+mv2sink alsa_output.pci-0000_00_1b.0.analog-stereo
 
 # Erstellt einen Loopback, der die Audio-Eingabe des Mikrofons in das Stream-Device kopiert
 loopbackInId=$(pactl load-module module-loopback sink=stream source=alsa_input.pci-0000_00_1b.0.analog-stereo)
@@ -56,7 +65,7 @@ echo "Darkice  starten"
 echo "###### KEEP THIS WINDOW OPEN FOR THE LIVETIME OF THE SHOW ######"
 echo "######           CTRL+C ENDS MUMBLE AND STREAM            ######"
 # Den Streamer starten
-darkice -c /tmp/darkice.conf.tws >/dev/null 2>&1
+sudo darkice -c /tmp/darkice.conf.tws >/dev/null 2>&1
 
 cleanup
 
@@ -76,13 +85,3 @@ cleanup
 #
 #
 #
-
-# Todos:
-# Derzeit wird der Monitor des Kopfhörer-Ausgangs in den Stream gespeist
-# Dadurch werden alle Ausgaben, die an den Kopfhörer gehen, auch in den Stream eingespeist
-
-# 
-
-# Wir möchten aber später aber ein Setup haben, in dem das Mikrofon und das Mumble nicht in den Stream gehen, alle anderen Ausgaben des Rechners aber schon (-> Musik)
-# Das soll Interaktiv steuerbar sein
-
