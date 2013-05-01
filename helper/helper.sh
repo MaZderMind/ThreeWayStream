@@ -55,3 +55,13 @@ readPasswd()
 {
 	whiptail --title "Sudo-Passwort" --passwordbox "Sudo-Passwort für Darkice (Realtime-Komponente)" 9 80 3>&1 1>&2 2>&3
 }
+
+backupMumbleConfiguration()
+{
+	cp ~/.config/Mumble/Mumble.conf ~/.config/Mumble/Mumble.conf.twsbackup
+}
+
+restoreMumbleConfiguration()
+{
+	cp ~/.config/Mumble/Mumble.conf.twsbackup ~/.config/Mumble/Mumble.conf
+}

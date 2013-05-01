@@ -23,6 +23,11 @@ TITLE="EX123 "
 # Darkice-Konfigurationsdatei
 DARKICE=$HOME/.tws/darkice.conf
 
+# Mumble-Konfigurationsdatei
+MUMBLE=$HOME/.tws/Mumble.conf
+
+# Mumble-Login
+MUMBLE_LOGIN=mumble://Podcast-Tester@localhost:64738
 
 # Konfigurationseinstellungen, die in der og. Konfigurationsdatei ersetzt werden
 #  Tip: Wenn sich die verschiedenen TWS-Profile in mehr als diesen drei Einstellungen
@@ -30,6 +35,6 @@ DARKICE=$HOME/.tws/darkice.conf
 #  einfach jeweils eine eigene Basiskonfigurationsdatei verweden.
 #  Diese Dateien können dann je nach Bedarf auch ohne ###-Platzhalter auskommen.
 DARKICE_SERVER=localhost
-DARKICE_POST=8000
+DARKICE_PORT=8000
 DARKICE_PASSWORD=password
 

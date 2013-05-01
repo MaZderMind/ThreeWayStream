@@ -42,21 +42,21 @@ PROFILE=$(selectProfile)
 # Sendungstitel einlesen
 TITLE=$(readTitle)
 
-# Sudo-Passwort abfragen (für darkice realtime-priorität)
-PASSWD=$(readPasswd)
-
-exit
-
 # Pulseaudio Aufräum-Funktion
 cleanup() {
-	echo "Mumble beenden"
+	# Mumble beenden
 	kill $mumblePid
 
-	echo "Mumble-Konfiguration wieder herstellen ###"
-	rm -f ~/.config/Mumble/Mumble.conf
-	mv ~/.config/Mumble/Mumble.conf.twsbackup ~/.config/Mumble/Mumble.conf
+	# Darkice beenden
+	kill $darkicePid
 
-	echo "PulseAudio zurücksetzen"
+	# Mumble-Konfiguration wieder herstellen
+	restoreMumbleConfiguration
+
+	# darkice Konfigu löschen
+	rm -f /tmp/darkice.conf.tws /tmp/darkice.log.tws /tmp/mumble.log.tws
+
+	# PulseAudio zurück setzen
 	pactl unload-module $loopbackInId
 	pactl unload-module $loopbackOutId
 	pactl unload-module $streamSinkId
@@ -66,37 +66,57 @@ cleanup() {
 # Signals auffangen (Ctrl-C z.B.)
 trap 'cleanup' 1 2
 
-
-echo "PulseAudio vorbereiten..."
-
-# Erstellt ein virtuelles Ausgabe-Gerät, das nicht auf eine echte Soundkarte zeigt
-# puleaudio erzeugt automatisch eine monitor-source, die in diese m Fall "stream.monitor"
+# Ein virtuelles Ausgabe-Gerät erstellen, das nicht auf eine echte Soundkarte zeigt.
+# puleaudio erzeugt automatisch eine monitor-source, die in diesem Fall "stream.monitor"
 # heißt und als Eingabe für Darkice geeignet ist
 streamSinkId=$(pactl load-module module-null-sink sink_name=stream)
-mv2sink alsa_output.pci-0000_00_1b.0.analog-stereo
 
-# Erstellt einen Loopback, der die Audio-Eingabe des Mikrofons in das Stream-Device kopiert
-loopbackInId=$(pactl load-module module-loopback sink=stream source=alsa_input.pci-0000_00_1b.0.analog-stereo)
+# Das genannte Ausgabegerät als Standard-Ausgabe-Gerät setzen
+mv2sink $OUTPUT
 
-# Erstellt einen Loopback, der die Audio-Ausgabe an den Kopfhörer in das Stream-Device kopiert
-loopbackOutId=$(pactl load-module module-loopback sink=stream source=alsa_output.pci-0000_00_1b.0.analog-stereo.monitor)
+# Einen Loopback erstellen, der die Audio-Eingabe des Mikrofons in das Stream-Device kopiert
+loopbackInId=$(pactl load-module module-loopback sink=stream source=$INPUT)
 
-echo "Mumble konfugieren"
-mv ~/.config/Mumble/Mumble.conf ~/.config/Mumble/Mumble.conf.twsbackup
-cp Mumble.conf ~/.config/Mumble/Mumble.conf
+# Einen Loopback erstellen, der die Audio-Ausgabe an den Kopfhörer in das Stream-Device kopiert
+loopbackOutId=$(pactl load-module module-loopback sink=stream source=$OUTPUT.monitor)
 
-echo "Mumble starten"
+# Mumble-Konfiguration sichern
+backupMumbleConfiguration
+
+# Mumble-Konfiguration mit werten aus dem Profil befüllen
+sed "s/###OUTPUT###/$OUTPUT/g" <$MUMBLE | sed "s/###INPUT###/$INPUT/g" >~/.config/Mumble/Mumble.conf
+
 # Mumble starten
-mumble mumble://Marc-und-Peter@heta.saerdnaer.de:64738 >/dev/null 2>&1 &
+mumble $MUMBLE_LOGIN >/tmp/mumble.log.tws 2>&1 &
 mumblePid=$!
+if [ $? != 0 ]; then
+	echo "Mumble konnte nicht gestartet werden"
+	cat /tmp/mumble.log.tws
+	cleanup
+fi
 
-echo "Darkice konfigurieren"
-sed "s/###TITLE###/$title/" <darkice.conf >/tmp/darkice.conf.tws
+# Darkice konfigurieren
+sed "s/###TITLE###/$TITLE/g" <$DARKICE | sed "s/###SERVER###/$DARKICE_SERVER/g" | sed "s/###PORT###/$DARKICE_PORT/g" | sed "s/###PASSWORD###/$DARKICE_PASSWORD/g" | sed "s/###SOURCE###/stream.monitor/g" >/tmp/darkice.conf.tws
 
-echo "Darkice  starten"
-echo "###### KEEP THIS WINDOW OPEN FOR THE LIVETIME OF THE SHOW ######"
-echo "######           CTRL+C ENDS MUMBLE AND STREAM            ######"
-# Den Streamer starten
-sudo darkice -c /tmp/darkice.conf.tws >/dev/null 2>&1
+# Darkice starten
+darkice -c /tmp/darkice.conf.tws >/tmp/darkice.log.tws 2>&1 &
+darkicePid=$!
+if [ $? != 0 ]; then
+	echo "Darkice konnte nicht gestartet werden"
+	cat /tmp/darkice.log.tws
+	cleanup
+fi
 
-cleanup
+# Sendung starten
+while true; do
+	choice=$( whiptail --title "Sendung" --menu "Die Sendung läuft jetzt. Du hast folgende Optionen." 20 80 3 \
+		"noop"    "nichts tun" \
+		"reroute" "Audio-Ausgaben neu Routen (behebt manchmal Probleme)" \
+		"quit"    "Die Sendung beenden" 3>&1 1>&2 2>&3 )
+
+	if [ $choice = "reroute" ]; then
+		mv2sink $OUTPUT
+	elif [ $choice = "quit" ]; then
+		cleanup
+	fi
+done
