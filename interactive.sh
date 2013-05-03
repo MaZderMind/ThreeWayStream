@@ -92,13 +92,13 @@ mumbleRecvSinkId=$(pactl load-module module-null-sink sink_name=mumble-recv)
 # Das genannte Ausgabegerät als Standard-Ausgabe-Gerät setzen
 mv2sink music
 
-loopbackMic2MumbleId=$(pactl load-module module-loopback sink=mumble-send source=$INPUT)
-loopbackMusic2MumbleId=$(pactl load-module module-loopback sink=mumble-send source=music.monitor)
+loopbackMic2MumbleId=$(pactl load-module module-loopback sink=mumble-send source=$INPUT latency_msec=25 adjust_time=1 source_dont_move=true sink_dont_move=true)
+loopbackMusic2MumbleId=$(pactl load-module module-loopback sink=mumble-send source=music.monitor adjust_time=1 source_dont_move=true sink_dont_move=true)
 
-loopbackMusic2PhonesId=$(pactl load-module module-loopback sink=$OUTPUT source=music.monitor)
-loopbackMumble2PhonesId=$(pactl load-module module-loopback sink=$OUTPUT source=mumble-recv.monitor)
+loopbackMusic2PhonesId=$(pactl load-module module-loopback sink=$OUTPUT source=music.monitor adjust_time=1 source_dont_move=true sink_dont_move=true)
+loopbackMumble2PhonesId=$(pactl load-module module-loopback sink=$OUTPUT source=mumble-recv.monitor latency_msec=25 adjust_time=1 source_dont_move=true sink_dont_move=true)
 
-loopbackMusic2Stream=$(pactl load-module module-loopback sink=stream source=music.monitor)
+loopbackMusic2Stream=$(pactl load-module module-loopback sink=stream source=music.monitor adjust_time=1 source_dont_move=true sink_dont_move=true)
 
 # Mumble-Konfiguration sichern
 backupMumbleConfiguration
@@ -148,24 +148,24 @@ while true; do
 	if [ $mode = "offline" ]; then
 		choice=$( whiptail --title "Offline" --menu "Mumble läuft aber der Stream ist noch Offline. Du hast folgende Optionen." 20 125 5 \
 			"noop"    "nichts tun" \
+			"reroute" "Audio-Ausgaben neu Routen (behebt manchmal Probleme)" \
 			"music"   "Den Stream starten aber nur Audio-Ausgaben von Programmen senden (Mumble-Gespräch wird noch nicht gestreamt)" \
 			"live"    "Den Stream starten und Live gehen (Audio-Ausgaben und Mumble wird gestreamt)" \
 			"quit"    "Die Sendung beenden" 3>&1 1>&2 2>&3 )
-			#"reroute" "Audio-Ausgaben neu Routen (behebt manchmal Probleme)" \
 	elif [ $mode = "music" ]; then
 		choice=$( whiptail --title "Musik-Modus" --menu "Mumble und der Stream laufen, aber nur Audio-Ausgaben von Programmen wird gesendet (Mumble-Gespräch wird noch nicht gestreamt). Du hast folgende Optionen." 20 125 5 \
 			"noop"    "nichts tun" \
+			"reroute" "Audio-Ausgaben neu Routen (behebt manchmal Probleme)" \
 			"live"    "Den Stream starten und Live gehen (Audio-Ausgaben und Mumble wird gestreamt)" \
 			"offline" "Den Stream beenden, Mumble aber laufen lassen" \
 			"quit"    "Die Sendung beenden" 3>&1 1>&2 2>&3 )
-			#"reroute" "Audio-Ausgaben neu Routen (behebt manchmal Probleme)" \
 	elif [ $mode = "live" ]; then
 		choice=$( whiptail --title "Live" --menu "Mumble und der Stream laufen. Du hast folgende Optionen." 20 125 5 \
 			"noop"    "nichts tun" \
+			"reroute" "Audio-Ausgaben neu Routen (behebt manchmal Probleme)" \
 			"music"   "Den Stream laufen lassen aber nur Audio-Ausgaben von Programmen senden (Mumble-Gespräch wird nicht mehr gestreamt)" \
 			"offline" "Den Stream beenden, Mumble aber laufen lassen" \
 			"quit"    "Die Sendung beenden" 3>&1 1>&2 2>&3 )
-			#"reroute" "Audio-Ausgaben neu Routen (behebt manchmal Probleme)" \
 	else
 		echo "invalid mode $mode"
 		cleanup
